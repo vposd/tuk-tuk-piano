@@ -33,7 +33,8 @@ const I18N = {
     continueBtn: 'Back to playing',
     exitBtn: 'Exit kid mode',
     gateAria: 'Settings (hold)',
-    padsAria: 'Keys'
+    padsAria: 'Keys',
+    padsHelp: 'Press any key on the keyboard, or tap anywhere on the screen, to play a note.'
   },
 
   ru: {
@@ -65,7 +66,8 @@ const I18N = {
     continueBtn: 'Продолжить игру',
     exitBtn: 'Выйти из режима игры',
     gateAria: 'Настройки (удерживать)',
-    padsAria: 'Клавиши'
+    padsAria: 'Клавиши',
+    padsHelp: 'Нажмите любую клавишу на клавиатуре или коснитесь экрана в любом месте, чтобы прозвучала нота.'
   },
 
   es: {
@@ -97,7 +99,8 @@ const I18N = {
     continueBtn: 'Volver a jugar',
     exitBtn: 'Salir del modo niños',
     gateAria: 'Ajustes (mantener pulsado)',
-    padsAria: 'Teclas'
+    padsAria: 'Teclas',
+    padsHelp: 'Pulsa cualquier tecla del teclado o toca la pantalla en cualquier punto para que suene una nota.'
   },
 
   de: {
@@ -129,7 +132,8 @@ const I18N = {
     continueBtn: 'Weiterspielen',
     exitBtn: 'Kindermodus verlassen',
     gateAria: 'Einstellungen (halten)',
-    padsAria: 'Tasten'
+    padsAria: 'Tasten',
+    padsHelp: 'Drücke eine beliebige Taste oder tippe irgendwo auf den Bildschirm, damit ein Ton erklingt.'
   }
 };
 
