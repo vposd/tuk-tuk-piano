@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tap Tap Piano</title>
+<meta name="description" content="A safe piano toy for babies and toddlers: every key makes a pretty sound, and nothing gets closed by accident.">
+<meta name="theme-color" content="#1a1a28">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Tap Tap Piano">
+<meta property="og:description" content="A safe piano toy for babies and toddlers: every key makes a pretty sound, and nothing gets closed by accident.">
+<meta property="og:image" content="icons/icon-512.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="styles.css?v=8">
+</head>
+<body>
+
+<main id="pads" class="pads" role="application" data-i18n-aria="padsAria" aria-label="Keys"><p class="sr-only" data-i18n="padsHelp"></p></main>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<!-- Grown-up gate: hold for 1.5 s -->
+<button id="gate" class="gate" data-i18n-aria="gateAria" aria-label="Settings (hold)">
+  <svg viewBox="0 0 24 24" class="gate-ico" aria-hidden="true">
+    <g fill="currentColor">
+      <rect x="10.4" y="1.5" width="3.2" height="3.4" rx="1.2"/>
+      <rect x="10.4" y="1.5" width="3.2" height="3.4" rx="1.2" transform="rotate(45 12 12)"/>
+      <rect x="10.4" y="1.5" width="3.2" height="3.4" rx="1.2" transform="rotate(90 12 12)"/>
+      <rect x="10.4" y="1.5" width="3.2" height="3.4" rx="1.2" transform="rotate(135 12 12)"/>
+      <rect x="10.4" y="1.5" width="3.2" height="3.4" rx="1.2" transform="rotate(180 12 12)"/>
+      <rect x="10.4" y="1.5" width="3.2" height="3.4" rx="1.2" transform="rotate(225 12 12)"/>
+      <rect x="10.4" y="1.5" width="3.2" height="3.4" rx="1.2" transform="rotate(270 12 12)"/>
+      <rect x="10.4" y="1.5" width="3.2" height="3.4" rx="1.2" transform="rotate(315 12 12)"/>
+    </g>
+    <circle cx="12" cy="12" r="6.3" fill="none" stroke="currentColor" stroke-width="3.4"/>
+  </svg>
+  <svg viewBox="0 0 36 36" class="gate-ring" aria-hidden="true"><circle cx="18" cy="18" r="16"/></svg>
+</button>
+
+<!-- Start screen -->
+<div id="start" class="overlay">
+  <div class="card">
+    <div class="logo" aria-hidden="true">
+      <span style="--h:340"></span><span style="--h:20"></span><span style="--h:45"></span>
+      <span style="--h:150"></span><span style="--h:190"></span><span style="--h:265"></span>
+    </div>
+    <h1 data-i18n="title">Tap Tap Piano</h1>
+    <p data-i18n="tagline"></p>
+    <button id="startBtn" class="big" data-i18n="play">Play</button>
+    <p class="tiny" data-i18n="startHint"></p>
+  </div>
+</div>
+
+<!-- Protection dropped -->
+<div id="resume" class="overlay soft" hidden>
+  <div class="card">
+    <h2 data-i18n="resumeTitle"></h2>
+    <p data-i18n="resumeText"></p>
+    <button id="resumeBtn" class="big" data-i18n="resumeBtn"></button>
+  </div>
+</div>
+
+<!-- Settings -->
+<div id="settings" class="overlay" hidden>
+  <div class="card wide" role="dialog" data-i18n-aria="settings" aria-label="Settings">
+    <h2 data-i18n="settings"></h2>
+
+    <div class="row">
+      <label data-i18n="instrument"></label>
+      <div class="seg" id="optVoice">
+        <button data-v="piano" data-i18n="piano"></button>
+        <button data-v="marimba" data-i18n="marimba"></button>
+        <button data-v="bells" data-i18n="bells"></button>
+        <button data-v="flute" data-i18n="flute"></button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label data-i18n="chords"></label>
+      <div class="seg" id="optChords">
+        <button data-v="0" data-i18n="single"></button>
+        <button data-v="1" data-i18n="chord"></button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label data-i18n="dissonance"></label>
+      <div class="seg" id="optHarmony">
+        <button data-v="soft" data-i18n="dissOff"></button>
+        <button data-v="chromatic" data-i18n="dissOn"></button>
+      </div>
+      <p class="hint" data-i18n="dissHint"></p>
+    </div>
+
+    <div class="row">
+      <label data-i18n="key"></label>
+      <div class="seg" id="optKey">
+        <button data-v="0">C</button><button data-v="2">D</button><button data-v="5">F</button>
+        <button data-v="7">G</button><button data-v="9">A</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label><span data-i18n="volume"></span> <span id="volVal" class="val"></span></label>
+      <input id="optVol" type="range" min="0" max="100" step="5">
+    </div>
+
+    <div class="row">
+      <label data-i18n="effects"></label>
+      <div class="seg" id="optFx">
+        <button data-v="1" data-i18n="on"></button>
+        <button data-v="0" data-i18n="off"></button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label data-i18n="guard"></label>
+      <div class="seg" id="optGuard">
+        <button data-v="1" data-i18n="on"></button>
+        <button data-v="0" data-i18n="off"></button>
+      </div>
+      <p class="hint" id="guardInfo"></p>
+    </div>
+
+    <div class="row">
+      <label data-i18n="language"></label>
+      <div class="seg" id="optLang">
+        <button data-v="" data-i18n="auto"></button>
+        <button data-v="en">English</button>
+        <button data-v="ru">Русский</button>
+        <button data-v="es">Español</button>
+        <button data-v="de">Deutsch</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="closeSettings" class="big" data-i18n="continueBtn"></button>
+      <button id="exitKiosk" class="ghost" data-i18n="exitBtn"></button>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js?v=8"></script>
+<script src="app.js?v=8"></script>
+</body>
+</html>

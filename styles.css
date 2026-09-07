@@ -1,0 +1,317 @@
+/* Tap Tap Piano — стили.
+   Ключевые принципы, за которыми стоят измерения:
+   - нажатие ТЕМНИТ плитку (ΔY от -1.3% до -3.5%), а не светлит: вспышка
+     конструктивно невозможна, как быстро бы ребёнок ни лупил;
+   - анимируются только composited-свойства (scale/opacity/transform);
+   - в покое не анимируется ничего — постоянная работа GPU давала рывки;
+   - иконка тёмная: контраст 3.3:1 в покое и 5.0:1 при нажатии
+     (белая при 0.3 давала 1.07:1, то есть была невидима). */
+
+:root{
+  --bg-top:#313143;
+  --bg-bottom:#1a1a28;
+  --ink:#f4f1ff;
+  --shape-ink:#241338;
+  --gap: clamp(5px, 1vmin, 14px);
+  --radius: clamp(18px, 3.2vmin, 38px);
+  --cols:5;
+  --rows:3;
+  --spring: cubic-bezier(.18,1.38,.3,1);
+  --press: cubic-bezier(.2,.9,.3,1);
+}
+
+*{box-sizing:border-box}
+
+html,body{
+  height:100%;
+  margin:0;
+  overflow:hidden;
+  color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  overscroll-behavior:none;
+  touch-action:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+  /* фон статичный: свет сверху, поэтому контактные тени плиток читаются */
+  background:linear-gradient(178deg,var(--bg-top) 0%,var(--bg-bottom) 100%);
+}
+
+:focus-visible{outline:3px solid #ffd166;outline-offset:3px;border-radius:inherit}
+
+/* ---------- сетка клавиш ---------- */
+.pads{
+  position:fixed;inset:0;z-index:2;
+  display:grid;
+  grid-template-columns:repeat(var(--cols),1fr);
+  grid-template-rows:repeat(var(--rows),1fr);
+  gap:var(--gap);
+  padding:
+    max(var(--gap), env(safe-area-inset-top))
+    max(var(--gap), env(safe-area-inset-right))
+    max(var(--gap), env(safe-area-inset-bottom))
+    max(var(--gap), env(safe-area-inset-left));
+}
+
+.pad{
+  position:relative;
+  border-radius:var(--radius);
+  overflow:hidden;
+  cursor:pointer;
+  /* цвета приходят из палитры в app.js */
+  background:linear-gradient(152deg,var(--pa) 0%,var(--pb) 100%);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--h) 100% 94% / .34),
+    inset 0 -1px 0 rgba(7,6,20,.22),
+    0 1px 2px rgba(7,6,20,.45),
+    0 clamp(4px,1vmin,12px) clamp(12px,2.6vmin,30px) rgba(7,6,20,.38);
+  /* ход клавиши — свойство scale: не конфликтует с анимацией появления */
+  transition:scale .44s var(--spring);
+}
+.pad.on{
+  scale:.94;
+  transition-duration:.08s;
+  transition-timing-function:var(--press);
+}
+
+/* Подсветка нажатия. Светлое ядро в центре + затемнение по всей площади:
+   суммарно плитка становится темнее, но с ярким центром — отклик несёт
+   ядро и кромка, а не общая яркость. */
+.pad .lit{
+  position:absolute;inset:0;border-radius:inherit;
+  opacity:0;pointer-events:none;
+  background:
+    radial-gradient(115% 92% at 50% 42%,
+      hsl(var(--h) 100% 92% / .40) 0%,
+      transparent 55%,
+      rgba(42,24,64,.12) 100%);
+  box-shadow:inset 0 0 0 clamp(3px,.6vmin,7px) hsl(var(--h) 95% 88% / .8);
+  transition:opacity .42s cubic-bezier(.25,.1,.4,1);
+}
+.pad.on .lit{
+  opacity:1;
+  transition-duration:.06s;
+  transition-timing-function:cubic-bezier(.4,.9,.5,1);
+}
+
+/* Волна от точки касания: маленький слой, растёт трансформом. */
+.pad .ripple{
+  position:absolute;left:50%;top:50%;
+  width:52%;aspect-ratio:1;
+  border-radius:50%;
+  transform:translate(-50%,-50%) scale(0);
+  background:radial-gradient(closest-side,
+    hsl(var(--h) 100% 90% / .5) 0%,
+    hsl(var(--h) 95% 86% / .18) 45%,
+    transparent 100%);
+  opacity:0;pointer-events:none;
+}
+
+/* Фигурка: тёмная краска (контраст 3.3:1), размер кодирует октаву —
+   низкие ноты крупнее, высокие мельче, как бруски ксилофона. */
+.pad .shape{
+  position:absolute;inset:var(--inset,19%);
+  opacity:.62;
+  pointer-events:none;
+  transition:opacity .3s ease-out;
+}
+.pad .shape svg{display:block;width:100%;height:100%;fill:var(--shape-ink)}
+.pad.on .shape{opacity:.82;transition-duration:.07s}
+
+@media (hover:hover) and (pointer:fine){
+  .pad:hover{scale:1.012;transition-duration:.14s}
+  .pad.on:hover{scale:.94}
+}
+
+#fx{position:fixed;left:0;top:0;width:100%;height:100%;z-index:3;pointer-events:none}
+
+/* появление: диагональная волна из угла низкой ноты, 512 мс на всё */
+.pads.enter{animation:padsIn .24s linear both}
+.pads.enter .pad{
+  animation:padIn .38s cubic-bezier(.2,1.24,.34,1) both;
+  animation-delay:calc(var(--diag,0) * 22ms);
+}
+@keyframes padsIn{from{opacity:0}to{opacity:1}}
+@keyframes padIn{
+  from{opacity:0;transform:scale(.86) translateY(14px)}
+  to{opacity:1;transform:none}
+}
+
+/* ---------- кнопка для взрослых ---------- */
+.gate{
+  position:fixed;z-index:6;
+  top:max(6px,env(safe-area-inset-top));
+  right:max(6px,env(safe-area-inset-right));
+  width:46px;height:46px;border:0;border-radius:50%;
+  background:#1a1338d9;color:#fff;opacity:.9;
+  border:1px solid #ffffff59;
+  box-shadow:0 4px 14px #00000073;
+  display:grid;place-items:center;cursor:pointer;
+  transition:opacity .3s ease;
+}
+.gate:hover{opacity:1}
+.gate-ico{width:23px;height:23px;grid-area:1/1}
+.gate-ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);pointer-events:none}
+.gate-ring circle{fill:none;stroke:#fff;stroke-width:3;stroke-dasharray:100.5;stroke-dashoffset:100.5;transition:stroke-dashoffset .18s ease-out}
+.gate.holding .gate-ring circle{stroke-dashoffset:0;transition:stroke-dashoffset 1.5s linear}
+
+/* индикатор снятой защиты */
+.kiosk-off{
+  position:fixed;z-index:6;
+  top:max(6px,env(safe-area-inset-top));
+  left:max(6px,env(safe-area-inset-left));
+  display:flex;align-items:center;gap:6px;
+  height:28px;padding:0 10px;border-radius:999px;
+  background:#1a1338d9;border:1px solid #ffffff40;
+  color:#ffd166;font:600 12px/1 system-ui,sans-serif;
+}
+.kiosk-off[hidden]{display:none}
+
+/* ---------- оверлеи ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:10;
+  display:grid;place-items:center;
+  padding:20px;
+  /* полупрозрачная вуаль: инструмент виден сразу, он и есть приглашение */
+  background:rgba(20,19,34,.72);
+  overflow:auto;
+  touch-action:pan-y;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:max(20px, env(safe-area-inset-bottom));
+}
+.overlay[hidden]{display:none}
+.overlay.dense{background:rgba(20,19,34,.86)}
+
+.card{
+  width:min(520px,100%);
+  background:linear-gradient(165deg,#2b2450,#1d1740);
+  border:1px solid #ffffff24;
+  border-radius:26px;
+  padding:clamp(20px,4vmin,34px);
+  box-shadow:0 30px 80px #000000a6;
+  text-align:center;
+}
+.card.wide{width:min(700px,100%);text-align:left}
+.card h1{margin:.1em 0 .35em;font-size:clamp(24px,4.6vmin,36px);letter-spacing:-.02em}
+.card h2{margin:0 0 .8em;font-size:clamp(19px,3.2vmin,26px)}
+.card p{margin:0 0 1.1em;color:#d5cef8;line-height:1.5;font-size:clamp(14px,1.9vmin,17px)}
+.card p.tiny{margin:1.1em 0 0;font-size:13px;color:#b0a8d8}
+.card .hint{margin:8px 0 0;font-size:13px;color:#aba3d6}
+
+/* статичная марка из цветов палитры, без анимации */
+.logo{display:flex;gap:6px;justify-content:center;align-items:flex-end;height:64px;margin-bottom:10px}
+.logo span{width:20px;border-radius:7px;background:linear-gradient(180deg,var(--c1),var(--c2))}
+.logo span:nth-child(1){height:32px;--c1:#fb9dae;--c2:#f46178}
+.logo span:nth-child(2){height:46px;--c1:#fcbd64;--c2:#ea8f16}
+.logo span:nth-child(3){height:60px;--c1:#71e58f;--c2:#50c23d}
+.logo span:nth-child(4){height:50px;--c1:#2fd3ee;--c2:#18acd0}
+.logo span:nth-child(5){height:38px;--c1:#b3affb;--c2:#a17afc}
+.logo span:nth-child(6){height:28px;--c1:#f998f1;--c2:#e962c6}
+
+button.big{
+  font:600 clamp(17px,2.5vmin,20px)/1 system-ui,sans-serif;
+  color:#1a0e33;border:0;cursor:pointer;
+  padding:17px 32px;border-radius:999px;
+  background:linear-gradient(180deg,#ffe27a,#ffb03a);
+  box-shadow:0 10px 28px #ffb03a4d, inset 0 2px 0 #ffffff99;
+  transition:scale .2s var(--spring);
+}
+button.big:hover{scale:1.03}
+button.big:active{scale:.96}
+
+button.ghost{
+  font:500 15px/1 system-ui,sans-serif;color:#cfc7f0;
+  background:transparent;border:1px solid #ffffff2e;border-radius:999px;
+  padding:13px 20px;cursor:pointer;transition:background .2s ease;
+}
+button.ghost:hover{background:#ffffff14}
+button.ghost:active{scale:.97}
+
+button.link{
+  background:none;border:0;color:#c3b9f0;font:500 14px/1 system-ui,sans-serif;
+  text-decoration:underline;cursor:pointer;padding:8px;margin-top:4px;
+}
+
+/* ---------- настройки ---------- */
+.section-title{
+  font:700 12px/1 system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;
+  color:#9d94cf;padding:0;margin:22px 0 10px;
+}
+.row{margin:0 0 18px}
+.row > label,.row .rowlabel{
+  display:block;font-weight:600;font-size:14px;color:#cec6f2;margin-bottom:8px;
+}
+.row .val{color:#ffd166;font-weight:700}
+
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{
+  flex:1 1 auto;min-width:82px;
+  font:500 15px/1 system-ui,sans-serif;color:#eae6ff;
+  background:#ffffff12;border:1px solid #ffffff24;border-radius:13px;
+  padding:13px 14px;cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,scale .2s var(--spring);
+}
+.seg button:hover{background:#ffffff1f}
+.seg button:active{scale:.97}
+/* выбранный чип: тёмный текст на светлом — 8.9:1 вместо 3.26:1 */
+.seg button[aria-checked="true"],
+.seg button[aria-pressed="true"]{
+  background:linear-gradient(180deg,#b6a9ff,#9a86ff);
+  border-color:#ffffff5c;color:#160b33;font-weight:600;
+  box-shadow:0 6px 20px #6a4dff4d;
+}
+
+details.more{margin:0 0 18px}
+details.more > summary{
+  cursor:pointer;color:#c3b9f0;font:600 14px/1 system-ui,sans-serif;
+  padding:10px 0;list-style:none;
+}
+details.more > summary::-webkit-details-marker{display:none}
+details.more > summary::before{content:"\25B8 ";display:inline-block;transition:rotate .2s}
+details.more[open] > summary::before{rotate:90deg}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:38px;background:transparent;cursor:pointer;
+  touch-action:none;
+}
+input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:99px;background:#ffffff26}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:28px;height:28px;margin-top:-9px;border-radius:50%;
+  background:linear-gradient(180deg,#ffe27a,#ffb03a);box-shadow:0 4px 14px #00000066;
+  transition:scale .18s var(--spring);
+}
+input[type=range]:active::-webkit-slider-thumb{scale:1.18}
+input[type=range]::-moz-range-track{height:10px;border-radius:99px;background:#ffffff26}
+input[type=range]::-moz-range-thumb{width:28px;height:28px;border:0;border-radius:50%;background:#ffc84d}
+
+.actions{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:26px}
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
+
+@media (max-width:520px){
+  .card{border-radius:22px;padding:18px 16px}
+  .row{margin-bottom:16px}
+  .seg{gap:6px}
+  .seg button{min-width:64px;padding:12px 10px;font-size:14px;border-radius:12px}
+  button.big{padding:16px 24px;width:100%}
+  .actions{margin-top:20px;gap:8px}
+  .actions button.ghost{width:100%}
+  .gate{width:42px;height:42px}
+}
+
+/* Уважаем системную просьбу убрать анимацию: цветовой отклик остаётся
+   (это не движение), движение выключается. */
+@media (prefers-reduced-motion:reduce){
+  .pads.enter,.pads.enter .pad{animation:none}
+  .pad,.pad.on{transition-property:opacity;scale:1}
+  .pad:hover{scale:1}
+  button.big:hover,button.big:active{scale:1}
+}
+
+@media (forced-colors: active){
+  .pad{forced-color-adjust:none}
+  .seg button[aria-checked="true"],.seg button[aria-pressed="true"]{forced-color-adjust:none}
+}

@@ -1,0 +1,145 @@
+/* Локализация / localisation. Английский по умолчанию, язык берётся из браузера. */
+'use strict';
+
+const I18N_LANGS = ['en', 'ru', 'es', 'de'];
+
+const I18N = {
+  en: {
+    title: 'Tap Tap Piano',
+    tagline: 'Any key, any tap — a pretty sound. The keyboard gets locked, so nothing is closed by accident.',
+    play: 'Play',
+    startHint: 'Grown-ups: hold the ⚙ button in the corner for 1.5 seconds',
+    resumeTitle: 'Protection switched off',
+    resumeText: 'Tap to turn fullscreen and the keyboard lock back on.',
+    resumeBtn: 'Continue',
+    settings: 'Settings',
+    instrument: 'Instrument',
+    piano: 'Piano', marimba: 'Marimba', bells: 'Bells', flute: 'Flute',
+    chords: 'Chords', single: 'Single note', chord: 'Chord',
+    dissonance: 'Dissonance',
+    dissOff: 'No — always pretty',
+    dissOn: 'Yes — like a real piano',
+    dissHint: 'With “no” the pads use a pentatonic scale: two notes in a row, or a whole handful at once, always sound sweet together.',
+    key: 'Key',
+    volume: 'Volume',
+    effects: 'Effects', on: 'On', off: 'Off',
+    guard: 'Close protection',
+    guardLock: 'Fullscreen plus keyboard lock: Esc, Alt+Tab and Ctrl+W are captured. Alt+F4 and Ctrl+Alt+Del cannot be blocked by any browser.',
+    guardLockMac: 'Fullscreen plus keyboard lock: Esc, Cmd+W and Cmd+Tab are captured. Cmd+Q and Force Quit cannot be blocked by any browser — macOS Guided Access style lock is in Screen Time.',
+    guardNoLock: 'Fullscreen is on, but this browser cannot lock the keyboard — Chrome or Edge on a computer is safer.',
+    guardNoFs: 'This browser cannot go fullscreen. Add the app to your home screen, then use Guided Access (iPhone, iPad) or screen pinning (Android) to keep your child inside.',
+    guardOff: 'Protection is off: your child can minimise or close the page.',
+    language: 'Language', auto: 'Auto',
+    continueBtn: 'Back to playing',
+    exitBtn: 'Exit kid mode',
+    gateAria: 'Settings (hold)',
+    padsAria: 'Keys'
+  },
+
+  ru: {
+    title: 'Тук-Тук Пианино',
+    tagline: 'Любая клавиша, любой тык по экрану — красивый звук. Клавиатура блокируется, случайно закрыть не получится.',
+    play: 'Играть',
+    startHint: 'Для взрослых: удерживайте кнопку ⚙ в углу 1,5 секунды',
+    resumeTitle: 'Защита выключилась',
+    resumeText: 'Нажмите, чтобы снова включить полный экран и блокировку клавиатуры.',
+    resumeBtn: 'Продолжить',
+    settings: 'Настройки',
+    instrument: 'Инструмент',
+    piano: 'Пианино', marimba: 'Маримба', bells: 'Колокольчики', flute: 'Флейта',
+    chords: 'Аккорды', single: 'Одна нота', chord: 'Аккорд',
+    dissonance: 'Диссонанс',
+    dissOff: 'Нет — всегда красиво',
+    dissOn: 'Да — как на пианино',
+    dissHint: 'При «нет» клавиши играют пентатонику: любые две ноты подряд и даже горсть нот сразу звучат созвучно.',
+    key: 'Тональность',
+    volume: 'Громкость',
+    effects: 'Эффекты', on: 'Вкл', off: 'Выкл',
+    guard: 'Защита от закрытия',
+    guardLock: 'Полный экран и блокировка клавиатуры: Esc, Alt+Tab, Ctrl+W перехватываются. Alt+F4 и Ctrl+Alt+Del не может погасить ни один браузер.',
+    guardLockMac: 'Полный экран и блокировка клавиатуры: Esc, Cmd+W, Cmd+Tab перехватываются. Cmd+Q и принудительное завершение не может погасить ни один браузер.',
+    guardNoLock: 'Полный экран включён, но этот браузер не умеет блокировать клавиатуру — надёжнее Chrome или Edge на компьютере.',
+    guardNoFs: 'Этот браузер не умеет открывать полный экран. Добавьте приложение на домашний экран и включите «Гид-доступ» (iPhone, iPad) или закрепление экрана (Android).',
+    guardOff: 'Защита выключена: ребёнок может свернуть или закрыть страницу.',
+    language: 'Язык', auto: 'Авто',
+    continueBtn: 'Продолжить игру',
+    exitBtn: 'Выйти из режима игры',
+    gateAria: 'Настройки (удерживать)',
+    padsAria: 'Клавиши'
+  },
+
+  es: {
+    title: 'Tap Tap Piano',
+    tagline: 'Cualquier tecla, cualquier toque: un sonido bonito. El teclado se bloquea y nada se cierra por accidente.',
+    play: 'Jugar',
+    startHint: 'Para adultos: mantén pulsado el botón ⚙ de la esquina 1,5 segundos',
+    resumeTitle: 'La protección se ha desactivado',
+    resumeText: 'Toca para volver a activar la pantalla completa y el bloqueo del teclado.',
+    resumeBtn: 'Continuar',
+    settings: 'Ajustes',
+    instrument: 'Instrumento',
+    piano: 'Piano', marimba: 'Marimba', bells: 'Campanas', flute: 'Flauta',
+    chords: 'Acordes', single: 'Una nota', chord: 'Acorde',
+    dissonance: 'Disonancia',
+    dissOff: 'No: siempre bonito',
+    dissOn: 'Sí: como un piano',
+    dissHint: 'Con «no» las teclas usan una escala pentatónica: dos notas seguidas, o un puñado a la vez, siempre suenan bien juntas.',
+    key: 'Tonalidad',
+    volume: 'Volumen',
+    effects: 'Efectos', on: 'Activado', off: 'Desactivado',
+    guard: 'Protección de cierre',
+    guardLock: 'Pantalla completa y bloqueo del teclado: Esc, Alt+Tab y Ctrl+W se capturan. Alt+F4 y Ctrl+Alt+Supr no los puede bloquear ningún navegador.',
+    guardLockMac: 'Pantalla completa y bloqueo del teclado: Esc, Cmd+W y Cmd+Tab se capturan. Cmd+Q y la salida forzada no los puede bloquear ningún navegador.',
+    guardNoLock: 'La pantalla completa está activada, pero este navegador no puede bloquear el teclado: es más seguro Chrome o Edge en un ordenador.',
+    guardNoFs: 'Este navegador no puede abrir pantalla completa. Añade la app a la pantalla de inicio y activa el Acceso guiado (iPhone, iPad) o la fijación de pantalla (Android).',
+    guardOff: 'La protección está desactivada: el niño puede minimizar o cerrar la página.',
+    language: 'Idioma', auto: 'Auto',
+    continueBtn: 'Volver a jugar',
+    exitBtn: 'Salir del modo niños',
+    gateAria: 'Ajustes (mantener pulsado)',
+    padsAria: 'Teclas'
+  },
+
+  de: {
+    title: 'Tap Tap Piano',
+    tagline: 'Jede Taste, jeder Tipper – ein schöner Klang. Die Tastatur wird gesperrt, versehentlich schließen geht nicht.',
+    play: 'Spielen',
+    startHint: 'Für Erwachsene: die ⚙-Taste in der Ecke 1,5 Sekunden halten',
+    resumeTitle: 'Schutz wurde ausgeschaltet',
+    resumeText: 'Tippen, um Vollbild und Tastatursperre wieder einzuschalten.',
+    resumeBtn: 'Weiter',
+    settings: 'Einstellungen',
+    instrument: 'Instrument',
+    piano: 'Klavier', marimba: 'Marimba', bells: 'Glöckchen', flute: 'Flöte',
+    chords: 'Akkorde', single: 'Einzelner Ton', chord: 'Akkord',
+    dissonance: 'Dissonanz',
+    dissOff: 'Nein – immer schön',
+    dissOn: 'Ja – wie am Klavier',
+    dissHint: 'Bei „nein“ spielen die Tasten eine Pentatonik: zwei Töne hintereinander oder eine ganze Handvoll klingen immer harmonisch.',
+    key: 'Tonart',
+    volume: 'Lautstärke',
+    effects: 'Effekte', on: 'Ein', off: 'Aus',
+    guard: 'Schließ-Schutz',
+    guardLock: 'Vollbild und Tastatursperre: Esc, Alt+Tab und Strg+W werden abgefangen. Alt+F4 und Strg+Alt+Entf kann kein Browser blockieren.',
+    guardLockMac: 'Vollbild und Tastatursperre: Esc, Cmd+W und Cmd+Tab werden abgefangen. Cmd+Q und das erzwungene Beenden kann kein Browser blockieren.',
+    guardNoLock: 'Vollbild ist an, aber dieser Browser kann die Tastatur nicht sperren – Chrome oder Edge am Computer ist sicherer.',
+    guardNoFs: 'Dieser Browser kann kein Vollbild öffnen. Füge die App zum Startbildschirm hinzu und aktiviere den geführten Zugriff (iPhone, iPad) oder das Fixieren des Bildschirms (Android).',
+    guardOff: 'Der Schutz ist aus: Das Kind kann die Seite minimieren oder schließen.',
+    language: 'Sprache', auto: 'Auto',
+    continueBtn: 'Weiterspielen',
+    exitBtn: 'Kindermodus verlassen',
+    gateAria: 'Einstellungen (halten)',
+    padsAria: 'Tasten'
+  }
+};
+
+function detectLang() {
+  const list = (navigator.languages && navigator.languages.length)
+    ? navigator.languages
+    : [navigator.language || 'en'];
+  for (const tag of list) {
+    const base = String(tag).toLowerCase().split('-')[0];
+    if (I18N_LANGS.indexOf(base) !== -1) return base;
+  }
+  return 'en';
+}

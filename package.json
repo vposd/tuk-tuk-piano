@@ -1,0 +1,10 @@
+{
+  "name": "tap-tap-piano",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A safe piano toy PWA for babies and toddlers: every key makes a pretty sound.",
+  "scripts": {
+    "start": "node tools/serve.js",
+    "icons": "node tools/make-icons.js"
+  }
+}
