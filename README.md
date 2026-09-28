@@ -95,7 +95,7 @@ open it. Everything is stored in `localStorage`.
 | Setting | Options | Notes |
 | --- | --- | --- |
 | What the pads play | Single notes (default), Guitar chords | Guitar mode puts 15 named campfire chords on the pads — see below |
-| Strum | Down-up (default), Down only | Alternating stroke direction in guitar mode |
+| Playing style | Strum down-up (default), Strum down, Fingerpicking | How the chord is sounded in guitar mode |
 | Instrument | **Marimba** (default), Piano, Bells, Flute | Synthesised, no samples to download |
 | Chords | Single note / Chord | Chords are stacked scale tones, spread over 14 ms |
 | Dissonance | **No** (default) / Yes | See *How it stays consonant* below |
@@ -152,7 +152,14 @@ top. An upstroke reverses the order and catches only the **top four strings** �
 below rarely reaches the basses — at **10 ms** apart, 18 % quieter and brighter (the tone filter
 opens from 3.8 to 5.2 kHz, because an upstroke hits with the edge of the pick). After a pause of
 **600 ms** the count starts over on a downstroke, so a new bar always lands on the strong beat.
-*Down only* disables the alternation.
+*Strum down* disables the alternation.
+
+**Fingerpicking** plays the classic six-note yard pattern instead: bass, 3, 2, 1, 2, 3, one note
+every **190 ms**, so one press is one bar of about 1.1 s. The bass alternates between the two
+lowest strings of the voicing from bar to bar, and resets to the root after **2.2 s** of silence —
+that threshold has to be longer than the bar itself, otherwise the alternation would reset on every
+press. Changing chord mid-bar damps the old one the way a hand does: notes that have not sounded
+yet are cancelled outright, and ringing strings fade over 120 ms.
 
 A strum is one gesture of the hand, so guitar mode allows **one chord per 90 ms** (single notes
 allow three per 40 ms) — two chords inside that window would be twelve overlapping strings of mud.

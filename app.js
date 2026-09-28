@@ -7,7 +7,7 @@
 const LS_KEY = 'tuktuk-piano-v1';
 const DEFAULTS = {
   mode: 'notes',      // notes = отдельные ноты | guitar = гитарные аккорды
-  stroke: 'alt',      // alt = переменный штрих (вниз-вверх) | down = только вниз
+  stroke: 'alt',      // alt = бой вниз-вверх | down = бой вниз | pick = перебор
   voice: 'marimba',   // маримба по умолчанию: быстрый спад, честная
                       // физика удара и отклик без «хвоста»
   chords: 0,          // 0 = одна нота, 1 = аккорд
@@ -135,6 +135,9 @@ const STRUM_GAP = 0.016;      // удар вниз: 16 мс между стру�
 const STRUM_GAP_UP = 0.010;   // вверх рука идёт быстрее
 const UP_STRINGS = 4;         // снизу медиатор достаёт только верхние струны
 const STROKE_RESET = 600;     // после такой паузы такт начинается заново, с удара вниз
+const PICK_STEP = 0.19;       // перебор: 190 мс между нотами, шестёрка укладывается в ~1.1 с
+const PICK_RESET = 2200;      // такт перебора длиннее, чем пауза для боя, иначе бас
+                              // сбрасывался бы на каждом нажатии и не чередовался
 
 const MAX_VOICES = 16;
 const MAX_VOICES_GUITAR = 26; // шесть струн на аккорд, нужен запас
@@ -364,12 +367,14 @@ function playPluck(midi, vel, delay, bright) {
   src.connect(tone); tone.connect(g); g.connect(bus);
   src.start(t0);
 
-  voices.push({
+  const voice = {
     gain: g,
     start: t0,
     end: t0 + buf.duration,
     stop(at) { try { src.stop(at); } catch (e) {} }
-  });
+  };
+  voices.push(voice);
+  return voice;
 }
 
 /* Прогрев: 22 уникальные струны на все 15 аккордов считаются 28.7 мс.
@@ -389,6 +394,50 @@ function warmPlucks() {
   idle(step);
 }
 
+/* Перебор «шестёрка»: бас, 3, 2, 1, 2, 3 — самый ходовой дворовый рисунок.
+   Одно нажатие играет один такт. Бас чередуется между двумя нижними
+   струнами аккорда, как и положено, а смена аккорда глушит предыдущий
+   перебор: не зазвучавшие ноты снимаются, уже звучащие затухают за 120 мс —
+   так же гасит струны рука, переставляя аппликатуру. */
+let pickVoices = [];
+let pickBassAlt = false, lastPickAt = 0;
+
+function stopPick() {
+  if (!ac) { pickVoices = []; return; }
+  const now = ac.currentTime;
+  for (const v of pickVoices) {
+    try {
+      if (v.start > now) { v.stop(now); v.end = now; }          // ещё не зазвучала
+      else {
+        v.gain.gain.cancelScheduledValues(now);
+        v.gain.gain.setValueAtTime(v.gain.gain.value, now);
+        v.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+        v.stop(now + 0.16);
+        v.end = now + 0.12;
+      }
+    } catch (e) {}
+  }
+  pickVoices = [];
+}
+
+function pickChord(step, vel) {
+  stopPick();
+  const midi = CHORDS[step % CHORDS.length].midi;
+  const n = midi.length;
+  const now = performance.now();
+  if (now - lastPickAt > PICK_RESET) pickBassAlt = false;
+  lastPickAt = now;
+
+  const bass = (pickBassAlt && n >= 5) ? midi[1] : midi[0];
+  const seq = [bass, midi[n - 3], midi[n - 2], midi[n - 1], midi[n - 2], midi[n - 3]];
+  const accent = [1, 0.72, 0.7, 0.82, 0.66, 0.68];   // бас ведёт, верх подсвечен
+  for (let i = 0; i < seq.length; i++) {
+    const v = playPluck(seq[i], vel * accent[i], i * PICK_STEP, i > 0);
+    if (v) pickVoices.push(v);
+  }
+  pickBassAlt = !pickBassAlt;
+}
+
 /* Переменный штрих: удары чередуются вниз-вверх, как при живой игре.
    Вниз — все струны от басовой, 22 мс между ними. Вверх — только верхние
    четыре, в обратном порядке, быстрее, тише и ярче. После паузы в 600 мс
@@ -396,6 +445,7 @@ function warmPlucks() {
 let lastStrumAt = 0, strokeDown = true;
 
 function strumChord(step, vel) {
+  if (S.stroke === 'pick') { pickChord(step, vel); return; }
   const midi = CHORDS[step % CHORDS.length].midi;
   const now = performance.now();
   if (S.stroke !== 'alt' || now - lastStrumAt > STROKE_RESET) strokeDown = true;
