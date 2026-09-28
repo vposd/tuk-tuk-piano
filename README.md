@@ -94,6 +94,7 @@ open it. Everything is stored in `localStorage`.
 
 | Setting | Options | Notes |
 | --- | --- | --- |
+| What the pads play | Single notes (default), Guitar chords | Guitar mode puts 15 named campfire chords on the pads — see below |
 | Instrument | **Marimba** (default), Piano, Bells, Flute | Synthesised, no samples to download |
 | Chords | Single note / Chord | Chords are stacked scale tones, spread over 14 ms |
 | Dissonance | **No** (default) / Yes | See *How it stays consonant* below |
@@ -115,6 +116,43 @@ checked for intervals of 1, 6 and 11 semitones.
 With **Dissonance: Yes** the pads become chromatic (semitone per pad, C3 upward, so the Key
 buttons name the note you actually hear) and chords are plain major triads — a normal little piano,
 where neighbouring keys do clash.
+
+## Guitar chord mode
+
+Switch **What the pads play** to *Guitar chords* and the 15 pads become the campfire chords,
+labelled with their names and laid out by family:
+
+| | | | | |
+| --- | --- | --- | --- | --- |
+| A7 | D7 | G7 | B7 | F |
+| Em | Bm | D | A | E |
+| **Am** | **Dm** | **E7** | C | G |
+
+The bottom row is the key of A minor — the first three pads are the three chords half the Russian
+yard songbook is built from — the middle row covers the guitar-friendly major keys, and the top row
+holds the dominant sevenths.
+
+Each pad holds a **real open-position voicing** in standard tuning (E2 A2 D3 G3 B3 E4), muted
+strings included, e.g. `Am = x02210 → 45 52 57 60 64` and `G = 320003 → 43 47 50 55 59 67`. All
+fifteen are checked by test: the pitch classes each voicing produces are compared against the
+chord's formula, so no pad can be labelled one thing and sound like another.
+
+The sound is a **plucked string, not stacked oscillators** — Karplus–Strong: a short filtered noise
+burst circulates in a delay line one period long, averaged with its neighbour on each lap, which is
+exactly how a real string loses its overtones. It is rendered offline into a cached `AudioBuffer`
+per note, because a feedback loop built from Web Audio nodes is quantised to a 128-sample render
+block and simply cannot tune above ~375 Hz. The delay line is read with **fractional
+interpolation** and is shortened by the half-sample phase delay the loop filter adds; measured
+across nine strings from E2 to G4, the tuning error is **0.0 cents**.
+
+A press strums downward: strings enter **22 ms** apart with a slight drop in velocity toward the
+top. A strum is one gesture of the hand, so guitar mode allows **one chord per 90 ms** (single
+notes allow three per 40 ms) — two chords inside that window would be twelve overlapping strings of
+mud. The voice ceiling rises from 16 to 26 for the same reason. All 22 distinct strings are
+pre-rendered in idle time when the mode is switched on (28.7 ms of work spread across idle frames,
+10 MB of buffers), so the first strum costs nothing.
+
+The instrument, chord, dissonance and key settings apply to note mode only.
 
 ## Reviewed by a child psychologist, a Montessori guide, a UX auditor and an interaction designer
 

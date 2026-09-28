@@ -6,6 +6,7 @@
 
 const LS_KEY = 'tuktuk-piano-v1';
 const DEFAULTS = {
+  mode: 'notes',      // notes = отдельные ноты | guitar = гитарные аккорды
   voice: 'marimba',   // маримба по умолчанию: быстрый спад, честная
                       // физика удара и отклик без «хвоста»
   chords: 0,          // 0 = одна нота, 1 = аккорд
@@ -103,7 +104,36 @@ const PRESETS = {
   }
 };
 
+/* ============================ гитарные аккорды ============================
+
+   Дворовый набор в открытых позициях, стандартный строй E2 A2 D3 G3 B3 E4.
+   midi — реально звучащие струны (заглушенные не указаны), состав каждого
+   аккорда проверен расчётом. Раскладка по рядам:
+     низ      Am Dm E7 C  G   — тональность ля минор, первые три «блатных»
+     середина Em Bm D  A  E   — гитарные тональности
+     верх     A7 D7 G7 B7 F   — доминанты и F                                */
+const CHORDS = [
+  { name: 'Am', midi: [45, 52, 57, 60, 64] },
+  { name: 'Dm', midi: [50, 57, 62, 65] },
+  { name: 'E7', midi: [40, 47, 50, 56, 59, 64] },
+  { name: 'C',  midi: [48, 52, 55, 60, 64] },
+  { name: 'G',  midi: [43, 47, 50, 55, 59, 67] },
+  { name: 'Em', midi: [40, 47, 52, 55, 59, 64] },
+  { name: 'Bm', midi: [47, 54, 59, 62, 66] },
+  { name: 'D',  midi: [50, 57, 62, 66] },
+  { name: 'A',  midi: [45, 52, 57, 61, 64] },
+  { name: 'E',  midi: [40, 47, 52, 56, 59, 64] },
+  { name: 'A7', midi: [45, 52, 55, 61, 64] },
+  { name: 'D7', midi: [50, 57, 60, 66] },
+  { name: 'G7', midi: [43, 47, 50, 55, 59, 65] },
+  { name: 'B7', midi: [47, 51, 57, 59, 66] },
+  { name: 'F',  midi: [41, 48, 53, 57, 60, 65] }
+];
+
+const STRUM_GAP = 0.022;      // бой сверху вниз: 22 мс между струнами
+
 const MAX_VOICES = 16;
+const MAX_VOICES_GUITAR = 26; // шесть струн на аккорд, нужен запас
 
 let ac = null, bus, master, limiter, verb, wet, dry, noiseBuf;
 let voices = [];
@@ -133,6 +163,7 @@ function initAudio() {
   limiter.connect(master); master.connect(ac.destination);
 
   noiseBuf = makeNoise(0.4);
+  warmPlucks();
 }
 
 function makeImpulse(dur, decay) {
@@ -159,7 +190,8 @@ function makeNoise(dur) {
 function pruneVoices() {
   const now = ac.currentTime;
   voices = voices.filter(v => v.end > now);
-  while (voices.length >= MAX_VOICES) {
+  const limit = S.mode === 'guitar' ? MAX_VOICES_GUITAR : MAX_VOICES;
+  while (voices.length >= limit) {
     const v = voices.shift();
     try {
       v.gain.gain.cancelScheduledValues(now);
@@ -239,7 +271,129 @@ function playNote(midi, vel, delay) {
   });
 }
 
+/* Щипковая струна по алгоритму Карплуса-Стронга: короткий шумовой импульс
+   гоняется по кольцевому буферу длиной в период, на каждом обороте
+   усредняется с соседом (это и даёт затухание обертонов, как у настоящей
+   струны) и теряет по амплитуде. Считаем оффлайн в AudioBuffer и кешируем:
+   петля обратной связи на узлах Web Audio квантуется 128 сэмплами и выше
+   ~375 Гц просто не строит. */
+const pluckCache = new Map();
+
+function pluckBuffer(midi) {
+  const hit = pluckCache.get(midi);
+  if (hit) return hit;
+
+  const sr = ac.sampleRate;
+  const f = 440 * Math.pow(2, (midi - 69) / 12);
+  // Период дробный: округление до целых сэмплов расстраивало верхние струны
+  // (на E4 это уже слышимые полтона-в-десятых). Читаем линию задержки с
+  // линейной интерполяцией — строй точный на любой ноте.
+  const P = sr / f;
+  const M = Math.max(4, Math.ceil(P) + 2);
+  const dur = Math.max(1.1, Math.min(2.8, 2.9 - (midi - 40) * 0.022));  // верх глохнет быстрее
+  const len = Math.floor(sr * dur);
+  const buf = ac.createBuffer(1, len, sr);
+  const d = buf.getChannelData(0);
+
+  // возбуждение: шум, сглаженный лоупассом — медиатор, а не щелчок
+  const line = new Float32Array(M);
+  let lp = 0;
+  for (let i = 0; i < M; i++) {
+    lp += ((Math.random() * 2 - 1) - lp) * 0.42;
+    line[i] = lp;
+  }
+  // убираем постоянную составляющую, иначе струна «дышит»
+  let mean = 0;
+  for (let i = 0; i < M; i++) mean += line[i];
+  mean /= M;
+  for (let i = 0; i < M; i++) line[i] -= mean;
+
+  // потеря за один оборот: -60 дБ ровно за dur секунд
+  const loss = Math.pow(10, -3 * P / (sr * dur));
+  let w = 0, prev = 0, peak = 0;
+  for (let i = 0; i < len; i++) {
+    // -0.5: усредняющий фильтр в петле сам даёт полсэмпла задержки,
+    // без этой поправки строй уезжает вниз тем сильнее, чем выше нота
+    let rp = w - (P - 0.5);
+    while (rp < 0) rp += M;
+    const i0 = rp | 0;
+    const fr = rp - i0;
+    const cur = line[i0] * (1 - fr) + line[(i0 + 1) % M] * fr;
+    line[w] = (cur + prev) * 0.5 * loss;
+    prev = cur;
+    w = w + 1 === M ? 0 : w + 1;
+    d[i] = cur;
+    const a = cur < 0 ? -cur : cur;
+    if (a > peak) peak = a;
+  }
+
+  const norm = peak > 0 ? 0.9 / peak : 1;
+  const fade = Math.min(len, Math.floor(sr * 0.06));
+  for (let i = 0; i < len; i++) {
+    let v = d[i] * norm;
+    if (i > len - fade) v *= (len - i) / fade;
+    d[i] = v;
+  }
+
+  pluckCache.set(midi, buf);
+  return buf;
+}
+
+function playPluck(midi, vel, delay) {
+  if (!ac) return;
+  pruneVoices();
+  const t0 = ac.currentTime + 0.005 + (delay || 0);
+  const buf = pluckBuffer(midi);
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+
+  // корпус гитары: мягкий срез верха, иначе щипок звенит жестью
+  const tone = ac.createBiquadFilter();
+  tone.type = 'lowpass';
+  tone.frequency.value = 3800;
+  tone.Q.value = 0.6;
+
+  const g = ac.createGain();
+  g.gain.value = 0.42 * vel;
+
+  src.connect(tone); tone.connect(g); g.connect(bus);
+  src.start(t0);
+
+  voices.push({
+    gain: g,
+    start: t0,
+    end: t0 + buf.duration,
+    stop(at) { try { src.stop(at); } catch (e) {} }
+  });
+}
+
+/* Прогрев: 22 уникальные струны на все 15 аккордов считаются 28.7 мс.
+   Раскладываем по кадрам простоя, чтобы первый бой не стоил 4 мс в кадре. */
+let warmQueue = null;
+function warmPlucks() {
+  if (!ac || S.mode !== 'guitar' || warmQueue) return;
+  const seen = new Set();
+  warmQueue = [];
+  for (const ch of CHORDS) for (const m of ch.midi) if (!seen.has(m)) { seen.add(m); warmQueue.push(m); }
+  const idle = window.requestIdleCallback || (cb => setTimeout(cb, 16));
+  const step = () => {
+    if (!warmQueue || !warmQueue.length) { warmQueue = null; return; }
+    pluckBuffer(warmQueue.shift());
+    idle(step);
+  };
+  idle(step);
+}
+
+// Бой сверху вниз: струны вступают по очереди, верхние чуть тише.
+function strumChord(step, vel) {
+  const ch = CHORDS[step % CHORDS.length];
+  for (let i = 0; i < ch.midi.length; i++) {
+    playPluck(ch.midi[i], vel * (1 - i * 0.04), i * STRUM_GAP);
+  }
+}
+
 function playStep(step, vel) {
+  if (S.mode === 'guitar') { strumChord(step, vel); return; }
   const notes = notesFor(step);
   for (let i = 0; i < notes.length; i++) {
     playNote(notes[i], vel * (i === 0 ? 1 : 0.62 - i * 0.06), i * 0.014);
@@ -316,17 +470,17 @@ function buildPads(animate) {
     el.style.setProperty('--h', c.h);
     el.style.setProperty('--inset', OCTAVE_INSET[octave]);
     el.style.setProperty('--diag', row + col);             // диагональная волна появления
-    el.innerHTML =
-      '<b class="lit"></b>' +
-      '<b class="ripple"></b>' +
-      '<b class="shape"><svg viewBox="0 0 100 100">' + SHAPES[step % SHAPES.length] + '</svg></b>';
+    const face = S.mode === 'guitar'
+      ? '<b class="label">' + CHORDS[step % CHORDS.length].name + '</b>'
+      : '<b class="shape"><svg viewBox="0 0 100 100">' + SHAPES[step % SHAPES.length] + '</svg></b>';
+    el.innerHTML = '<b class="lit"></b><b class="ripple"></b>' + face;
     padsEl.appendChild(el);
 
     pads.push({
       el, step, hue: c.h, sparkL: c.sparkL, rect: null,
       lit: el.querySelector('.lit'),
       ripple: el.querySelector('.ripple'),
-      shape: el.querySelector('.shape'),
+      shape: el.querySelector('.shape') || el.querySelector('.label'),
       rippleAnim: null, shapeAnim: null,
       lastFx: -1e9
     });
@@ -573,8 +727,11 @@ function richFxAllowed() {
 // звучат максимум три (в пентатонике это аккорд, а не мешанина).
 function onsetAllowed() {
   const now = performance.now();
-  if (now - onsetWindow > 40) { onsetWindow = now; onsetCount = 0; }
-  return ++onsetCount <= 3;
+  // Бой — одно движение руки: два аккорда в 90 мс дают кашу из 12 струн.
+  const win = S.mode === 'guitar' ? 90 : 40;
+  const max = S.mode === 'guitar' ? 1 : 3;
+  if (now - onsetWindow > win) { onsetWindow = now; onsetCount = 0; }
+  return ++onsetCount <= max;
 }
 
 function press(idx, vel, fx, fy) {
@@ -867,8 +1024,10 @@ function bindSeg(id, key, parse) {
     saveSettings();
     syncUI();
     applySettings();
+    if (key === 'mode') { releaseAll(); clearFx(); buildPads(false); warmPlucks(); }
   });
 }
+bindSeg('optMode', 'mode', v => v);
 bindSeg('optVoice', 'voice', v => v);
 bindSeg('optChords', 'chords', v => +v);
 bindSeg('optHarmony', 'harmony', v => v);
@@ -887,7 +1046,7 @@ volEl.addEventListener('change', saveSettings);
 
 function syncUI() {
   applyI18n();
-  const marks = [['optVoice', 'voice'], ['optChords', 'chords'], ['optHarmony', 'harmony'],
+  const marks = [['optMode', 'mode'], ['optVoice', 'voice'], ['optChords', 'chords'], ['optHarmony', 'harmony'],
                  ['optKey', 'key'], ['optFx', 'fx'], ['optGuard', 'guard'], ['optLang', 'lang']];
   for (const pair of marks) {
     for (const b of document.getElementById(pair[0]).querySelectorAll('button[data-v]')) {

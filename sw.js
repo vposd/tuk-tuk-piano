@@ -3,7 +3,7 @@
    легко получить новый app.js со старым styles.css. */
 'use strict';
 
-const VERSION = 'v9';
+const VERSION = 'v10';
 const CACHE = 'tap-tap-piano-' + VERSION;
 
 const SHELL = [

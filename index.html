@@ -17,7 +17,7 @@
 <meta property="og:description" content="A safe piano toy for babies and toddlers: every key makes a pretty sound, and nothing gets closed by accident.">
 <meta property="og:image" content="icons/icon-512.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="styles.css?v=9">
+<link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
 
@@ -69,6 +69,15 @@
 <div id="settings" class="overlay" hidden>
   <div class="card wide" role="dialog" data-i18n-aria="settings" aria-label="Settings">
     <h2 data-i18n="settings"></h2>
+
+    <div class="row">
+      <label data-i18n="mode"></label>
+      <div class="seg" id="optMode">
+        <button data-v="notes" data-i18n="modeNotes"></button>
+        <button data-v="guitar" data-i18n="modeGuitar"></button>
+      </div>
+      <p class="hint" data-i18n="modeHint"></p>
+    </div>
 
     <div class="row">
       <label data-i18n="instrument"></label>
@@ -145,7 +154,7 @@
   </div>
 </div>
 
-<script src="i18n.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="i18n.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
