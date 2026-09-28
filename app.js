@@ -7,6 +7,7 @@
 const LS_KEY = 'tuktuk-piano-v1';
 const DEFAULTS = {
   mode: 'notes',      // notes = отдельные ноты | guitar = гитарные аккорды
+  stroke: 'alt',      // alt = переменный штрих (вниз-вверх) | down = только вниз
   voice: 'marimba',   // маримба по умолчанию: быстрый спад, честная
                       // физика удара и отклик без «хвоста»
   chords: 0,          // 0 = одна нота, 1 = аккорд
@@ -130,7 +131,10 @@ const CHORDS = [
   { name: 'F',  midi: [41, 48, 53, 57, 60, 65] }
 ];
 
-const STRUM_GAP = 0.022;      // бой сверху вниз: 22 мс между струнами
+const STRUM_GAP = 0.016;      // удар вниз: 16 мс между струнами (~80 мс на шесть)
+const STRUM_GAP_UP = 0.010;   // вверх рука идёт быстрее
+const UP_STRINGS = 4;         // снизу медиатор достаёт только верхние струны
+const STROKE_RESET = 600;     // после такой паузы такт начинается заново, с удара вниз
 
 const MAX_VOICES = 16;
 const MAX_VOICES_GUITAR = 26; // шесть струн на аккорд, нужен запас
@@ -339,7 +343,7 @@ function pluckBuffer(midi) {
   return buf;
 }
 
-function playPluck(midi, vel, delay) {
+function playPluck(midi, vel, delay, bright) {
   if (!ac) return;
   pruneVoices();
   const t0 = ac.currentTime + 0.005 + (delay || 0);
@@ -350,7 +354,8 @@ function playPluck(midi, vel, delay) {
   // корпус гитары: мягкий срез верха, иначе щипок звенит жестью
   const tone = ac.createBiquadFilter();
   tone.type = 'lowpass';
-  tone.frequency.value = 3800;
+  // вверх медиатор задевает струны ребром — звук ярче
+  tone.frequency.value = bright ? 5200 : 3800;
   tone.Q.value = 0.6;
 
   const g = ac.createGain();
@@ -384,12 +389,30 @@ function warmPlucks() {
   idle(step);
 }
 
-// Бой сверху вниз: струны вступают по очереди, верхние чуть тише.
+/* Переменный штрих: удары чередуются вниз-вверх, как при живой игре.
+   Вниз — все струны от басовой, 22 мс между ними. Вверх — только верхние
+   четыре, в обратном порядке, быстрее, тише и ярче. После паузы в 600 мс
+   счёт начинается заново, с удара вниз: так берут сильную долю. */
+let lastStrumAt = 0, strokeDown = true;
+
 function strumChord(step, vel) {
-  const ch = CHORDS[step % CHORDS.length];
-  for (let i = 0; i < ch.midi.length; i++) {
-    playPluck(ch.midi[i], vel * (1 - i * 0.04), i * STRUM_GAP);
+  const midi = CHORDS[step % CHORDS.length].midi;
+  const now = performance.now();
+  if (S.stroke !== 'alt' || now - lastStrumAt > STROKE_RESET) strokeDown = true;
+  lastStrumAt = now;
+
+  if (strokeDown) {
+    for (let i = 0; i < midi.length; i++) {
+      playPluck(midi[i], vel * (1 - i * 0.04), i * STRUM_GAP, false);
+    }
+  } else {
+    const first = Math.max(0, midi.length - UP_STRINGS);
+    for (let k = 0; midi.length - 1 - k >= first; k++) {
+      playPluck(midi[midi.length - 1 - k], vel * 0.82 * (1 - k * 0.04), k * STRUM_GAP_UP, true);
+    }
   }
+
+  if (S.stroke === 'alt') strokeDown = !strokeDown;
 }
 
 function playStep(step, vel) {
@@ -1028,6 +1051,7 @@ function bindSeg(id, key, parse) {
   });
 }
 bindSeg('optMode', 'mode', v => v);
+bindSeg('optStroke', 'stroke', v => v);
 bindSeg('optVoice', 'voice', v => v);
 bindSeg('optChords', 'chords', v => +v);
 bindSeg('optHarmony', 'harmony', v => v);
@@ -1046,7 +1070,7 @@ volEl.addEventListener('change', saveSettings);
 
 function syncUI() {
   applyI18n();
-  const marks = [['optMode', 'mode'], ['optVoice', 'voice'], ['optChords', 'chords'], ['optHarmony', 'harmony'],
+  const marks = [['optMode', 'mode'], ['optStroke', 'stroke'], ['optVoice', 'voice'], ['optChords', 'chords'], ['optHarmony', 'harmony'],
                  ['optKey', 'key'], ['optFx', 'fx'], ['optGuard', 'guard'], ['optLang', 'lang']];
   for (const pair of marks) {
     for (const b of document.getElementById(pair[0]).querySelectorAll('button[data-v]')) {

@@ -95,6 +95,7 @@ open it. Everything is stored in `localStorage`.
 | Setting | Options | Notes |
 | --- | --- | --- |
 | What the pads play | Single notes (default), Guitar chords | Guitar mode puts 15 named campfire chords on the pads — see below |
+| Strum | Down-up (default), Down only | Alternating stroke direction in guitar mode |
 | Instrument | **Marimba** (default), Piano, Bells, Flute | Synthesised, no samples to download |
 | Chords | Single note / Chord | Chords are stacked scale tones, spread over 14 ms |
 | Dissonance | **No** (default) / Yes | See *How it stays consonant* below |
@@ -145,10 +146,17 @@ block and simply cannot tune above ~375 Hz. The delay line is read with **fracti
 interpolation** and is shortened by the half-sample phase delay the loop filter adds; measured
 across nine strings from E2 to G4, the tuning error is **0.0 cents**.
 
-A press strums downward: strings enter **22 ms** apart with a slight drop in velocity toward the
-top. A strum is one gesture of the hand, so guitar mode allows **one chord per 90 ms** (single
-notes allow three per 40 ms) — two chords inside that window would be twelve overlapping strings of
-mud. The voice ceiling rises from 16 to 26 for the same reason. All 22 distinct strings are
+**Strum** is alternating by default (*Down-up*), the way a hand actually plays. A downstroke sounds
+every string of the voicing from the bass up, **16 ms** apart, with velocity easing off toward the
+top. An upstroke reverses the order and catches only the **top four strings** — a pick coming from
+below rarely reaches the basses — at **10 ms** apart, 18 % quieter and brighter (the tone filter
+opens from 3.8 to 5.2 kHz, because an upstroke hits with the edge of the pick). After a pause of
+**600 ms** the count starts over on a downstroke, so a new bar always lands on the strong beat.
+*Down only* disables the alternation.
+
+A strum is one gesture of the hand, so guitar mode allows **one chord per 90 ms** (single notes
+allow three per 40 ms) — two chords inside that window would be twelve overlapping strings of mud.
+The voice ceiling rises from 16 to 26 for the same reason. All 22 distinct strings are
 pre-rendered in idle time when the mode is switched on (28.7 ms of work spread across idle frames,
 10 MB of buffers), so the first strum costs nothing.
 
