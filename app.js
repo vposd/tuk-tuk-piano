@@ -401,8 +401,12 @@ function warmPlucks() {
    так же гасит струны рука, переставляя аппликатуру. */
 let pickVoices = [];
 let pickBassAlt = false, lastPickAt = 0;
+let pickOwner = -1, pickTimer = null;
 
 function stopPick() {
+  clearTimeout(pickTimer);
+  pickTimer = null;
+  pickOwner = -1;
   if (!ac) { pickVoices = []; return; }
   const now = ac.currentTime;
   for (const v of pickVoices) {
@@ -420,22 +424,42 @@ function stopPick() {
   pickVoices = [];
 }
 
-function pickChord(step, vel) {
-  stopPick();
-  const midi = CHORDS[step % CHORDS.length].midi;
+// один такт шестёрки, начиная с абсолютного момента at по аудио-часам
+function pickBar(midi, vel, at) {
   const n = midi.length;
-  const now = performance.now();
-  if (now - lastPickAt > PICK_RESET) pickBassAlt = false;
-  lastPickAt = now;
-
   const bass = (pickBassAlt && n >= 5) ? midi[1] : midi[0];
   const seq = [bass, midi[n - 3], midi[n - 2], midi[n - 1], midi[n - 2], midi[n - 3]];
   const accent = [1, 0.72, 0.7, 0.82, 0.66, 0.68];   // бас ведёт, верх подсвечен
+  const lead = Math.max(0, at - ac.currentTime);
   for (let i = 0; i < seq.length; i++) {
-    const v = playPluck(seq[i], vel * accent[i], i * PICK_STEP, i > 0);
+    const v = playPluck(seq[i], vel * accent[i], lead + i * PICK_STEP, i > 0);
     if (v) pickVoices.push(v);
   }
   pickBassAlt = !pickBassAlt;
+}
+
+function pickChord(step, vel, idx) {
+  stopPick();
+  const midi = CHORDS[step % CHORDS.length].midi;
+  const now = performance.now();
+  if (now - lastPickAt > PICK_RESET) pickBassAlt = false;
+  lastPickAt = now;
+  pickOwner = idx === undefined ? -1 : idx;
+
+  const bar = 6 * PICK_STEP;
+  let at = ac.currentTime + 0.005;
+  pickBar(midi, vel, at);
+
+  /* Пока клавиша зажата, такт повторяется. Время следующего такта считаем
+     по аудио-часам, а таймер будим заранее — иначе setTimeout копил бы
+     сдвиг и перебор уплывал бы от доли. Отпускание вызывает stopPick(). */
+  const loop = () => {
+    at += bar;
+    pickBar(midi, vel, at);
+    lastPickAt = performance.now();
+    pickTimer = setTimeout(loop, bar * 1000 - 120);
+  };
+  pickTimer = setTimeout(loop, bar * 1000 - 120);
 }
 
 /* Переменный штрих: удары чередуются вниз-вверх, как при живой игре.
@@ -444,8 +468,8 @@ function pickChord(step, vel) {
    счёт начинается заново, с удара вниз: так берут сильную долю. */
 let lastStrumAt = 0, strokeDown = true;
 
-function strumChord(step, vel) {
-  if (S.stroke === 'pick') { pickChord(step, vel); return; }
+function strumChord(step, vel, idx) {
+  if (S.stroke === 'pick') { pickChord(step, vel, idx); return; }
   const midi = CHORDS[step % CHORDS.length].midi;
   const now = performance.now();
   if (S.stroke !== 'alt' || now - lastStrumAt > STROKE_RESET) strokeDown = true;
@@ -465,8 +489,8 @@ function strumChord(step, vel) {
   if (S.stroke === 'alt') strokeDown = !strokeDown;
 }
 
-function playStep(step, vel) {
-  if (S.mode === 'guitar') { strumChord(step, vel); return; }
+function playStep(step, vel, idx) {
+  if (S.mode === 'guitar') { strumChord(step, vel, idx); return; }
   const notes = notesFor(step);
   for (let i = 0; i < notes.length; i++) {
     playNote(notes[i], vel * (i === 0 ? 1 : 0.62 - i * 0.06), i * 0.014);
@@ -825,7 +849,7 @@ function press(idx, vel, fx, fy) {
     padDip(pad);
   }
 
-  if (onsetAllowed()) playStep(pad.step, vel);
+  if (onsetAllowed()) playStep(pad.step, vel, idx);
   if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
 }
 
@@ -836,10 +860,14 @@ function release(idx) {
   for (const v of heldKeys.values()) if (v === idx) stillHeld = true;
   for (const v of heldPointers.values()) if (v === idx) stillHeld = true;
   if (stillHeld) return;
+  // Отпустили клавишу — перебор обрывается: не зазвучавшие ноты снимаются,
+  // звучащие глушатся. Но только если такт вёл именно этот пэд.
+  if (S.stroke === 'pick' && pickOwner === idx) stopPick();
   pad.el.classList.remove('on');   // пружинный возврат делает transition в CSS
 }
 
 function releaseAll() {
+  stopPick();
   for (const timer of keyTimers.values()) clearTimeout(timer);
   keyTimers.clear();
   heldKeys.clear();

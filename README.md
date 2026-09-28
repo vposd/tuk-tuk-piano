@@ -155,11 +155,15 @@ opens from 3.8 to 5.2 kHz, because an upstroke hits with the edge of the pick). 
 *Strum down* disables the alternation.
 
 **Fingerpicking** plays the classic six-note yard pattern instead: bass, 3, 2, 1, 2, 3, one note
-every **190 ms**, so one press is one bar of about 1.1 s. The bass alternates between the two
-lowest strings of the voicing from bar to bar, and resets to the root after **2.2 s** of silence —
-that threshold has to be longer than the bar itself, otherwise the alternation would reset on every
-press. Changing chord mid-bar damps the old one the way a hand does: notes that have not sounded
-yet are cancelled outright, and ringing strings fade over 120 ms.
+every **190 ms**, so a bar runs about 1.1 s. **The pattern repeats for as long as the pad is held
+and stops the moment it is released** — hold a chord for two bars and it keeps picking, let go and
+it is damped mid-bar, exactly like lifting the fretting hand. Each bar is scheduled against the
+audio clock rather than by `setTimeout` alone, so the pattern does not drift off the beat over
+time. The bass alternates between the two lowest strings of the voicing from bar to bar, and resets
+to the root after **2.2 s** of silence — that threshold has to be longer than the bar itself,
+otherwise the alternation would reset on every press. Changing chord mid-bar damps the old one the
+same way: notes that have not sounded yet are cancelled outright, and ringing strings fade over
+120 ms. A short tap therefore sounds only the notes that had time to start.
 
 A strum is one gesture of the hand, so guitar mode allows **one chord per 90 ms** (single notes
 allow three per 40 ms) — two chords inside that window would be twelve overlapping strings of mud.
